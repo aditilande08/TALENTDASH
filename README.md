@@ -1,6 +1,6 @@
 # TalentDash — Compensation Intelligence Platform
 
-A modern, full-stack compensation intelligence platform focused on structured, comparable, and normalized salary data across tech companies. Built for the 3-Day Software Engineering Trial Task.
+A modern, full-stack compensation intelligence platform focused on structured, comparable, and normalized salary data across tech companies. 
 
 **Live URL:** [https://talentdash-seven.vercel.app/](https://talentdash-seven.vercel.app/)
 
