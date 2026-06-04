@@ -118,3 +118,29 @@ Database fields are indexed in PostgreSQL for optimized lookup under heavy traff
 * **`GET /api/companies/[slug]`**: Returns metadata, raw salary entries, median total compensation, and level distributions for a company.
 * **`GET /api/compare?s1={id}&s2={id}`**: Calculates comparison deltas side-by-side for two salary records.
 * **`POST /api/ingest-salary`**: Submits a new compensation entry to the database.
+
+---
+
+## 🏛️ Architecture Decisions (FS4)
+
+### 1. Static vs. ISR vs. Dynamic Pages
+* **Homepage (`/`) & Company Directory (`/companies`) - ISR (revalidate: 3600):** These pages change daily as trending companies and recent salaries are submitted. Re-rendering them statically every hour ensures fresh data without overloading the database with live requests.
+* **Company Detail Page (`/companies/[slug]`) - SSG:** Since individual company profiles, industries, and headquarters location details change very rarely, these pages are prebuilt statically at compile-time using `generateStaticParams()`. This makes page loads instant and highly search engine friendly.
+* **Salaries Explorer (`/salaries`), Compare (`/compare`), & Submit (`/submit`) - CSR/Dynamic:** These pages have high user interactivity (interactive debounced filtering, selection dropdowns, forms, and client-side currency switching). Hence, they are designed as Client Components with fast dynamic server-rendered skeletons.
+* **APIs (`/api/*`) - Cache Headers:** 
+  * `GET /api/salaries` utilizes `s-maxage=300, stale-while-revalidate=3600` (5 minutes edge CDN caching) because salary listings update often but do not need real-time sync across page views.
+  * `GET /api/companies/[slug]` utilizes `s-maxage=3600, stale-while-revalidate=86400` (1 hour edge CDN caching) because company data and stats are relatively static.
+
+### 2. Page-Based vs. Cursor-Based Pagination
+We implemented **Page-Based Pagination** for the salaries list:
+* **SEO Advantages:** Google crawlers rely heavily on static page boundaries (e.g. `?page=2`) to crawl and index entire catalog listings systematically. Cursor-based (infinite scroll) pagination is virtually invisible to search indexers.
+* **Jump to Page:** Job searchers want the utility of jumping directly to specific parts of the database (e.g. Page 4), which cursor-based tokens cannot easily support without reading all previous records.
+
+### 3. What We Did Not Build & Trade-offs
+* **Authentication:** Banned from this scope to focus purely on data normalisation, pipeline throughput, and layout performance.
+* **Rate Limiting:** Left out under the time limit. For production, we would add IP-based and user-level rate limiting on the `/api/ingest-salary` route to prevent API spamming and script injections.
+
+### 4. What We Would Build Differently with More Time
+* **Visual Salary Distributions:** Implement SVG/D3 charts (box plots, percentiles) on company pages instead of simple stacked bars.
+* **Automatic Level Mapping Fallback:** Set up a rule-based mapper that falls back to a serverless LLM worker to classify ambiguous titles into standard level enums automatically on ingest.
+
