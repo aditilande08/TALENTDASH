@@ -2,7 +2,7 @@
 
 A modern, full-stack compensation intelligence platform focused on structured, comparable, and normalized salary data across tech companies. Built for the 3-Day Software Engineering Trial Task.
 
-**Live URL:** *(Add your live Vercel URL here after deployment)*
+**Live URL:** [https://talentdash-seven.vercel.app/](https://talentdash-seven.vercel.app/)
 
 ---
 
