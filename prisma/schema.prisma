@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Level Enum ──
+// Standardised levels across all companies. Free text like "Senior Engineer" is
+// rejected at ingestion. The AI normaliser maps titles to this enum.
+enum Level {
+  L3
+  L4
+  L5
+  L6
+  SDE_I
+  SDE_II
+  SDE_III
+  STAFF
+  PRINCIPAL
+  IC4
+  IC5
+}
+
+enum Currency {
+  INR
+  USD
+  GBP
+  EUR
+}
+
+enum Source {
+  CONTRIBUTOR
+  SCRAPED
+  AI_INFERRED
+}
+
+// ── Company Model ──
+model Company {
+  id              String   @id @default(uuid())
+  name            String   // Display name: "Google India"
+  slug            String   @unique // URL-safe: "google"
+  normalized_name String   // Lowercase indexed: "google"
+  industry        String?
+  headquarters    String?
+  founded_year    Int?
+  headcount_range String?
+  salaries        Salary[]
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([normalized_name])
+}
+
+// ── Salary Model ──
+// RULE: total_compensation is ALWAYS computed server-side.
+// base_salary + (bonus ?? 0) + (stock ?? 0).
+// The ingest endpoint strips and recomputes this field regardless of what is submitted.
+model Salary {
+  id                   String   @id @default(uuid())
+  company              Company  @relation(fields: [company_id], references: [id])
+  company_id           String
+  role                 String
+  level                Level
+  location             String
+  currency             Currency @default(INR)
+  experience_years     Int
+  base_salary          BigInt
+  bonus                BigInt   @default(0)
+  stock                BigInt   @default(0)
+  total_compensation   BigInt   // COMPUTED: base + bonus + stock. Never trust client.
+  source               Source   @default(CONTRIBUTOR)
+  confidence_score     Decimal  @db.Decimal(3, 2) // 0.00–1.00
+  is_verified          Boolean  @default(false)
+  submitted_at         DateTime @default(now())
+
+  // ── Indexes for query performance ──
+  @@index([company_id, level, location]) // Primary filter path
+  @@index([total_compensation])          // Sort path
+  @@index([submitted_at])               // Recency path
+  @@index([location, level])            // Geo-level filter path
+}
